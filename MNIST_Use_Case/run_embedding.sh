@@ -12,11 +12,11 @@ export OPENBLAS_NUM_THREADS=1
 export TASK_ID=$SLURM_ARRAY_TASK_ID
 
 # Normal Inference
-#time apptainer exec -B ../mnist:/mnist mnist.sif python3 /mnist/mnist_test_embeddings.py --load-model --model-path /mnist/mnist_cnn.pt
+#time apptainer exec -B ../mnist:/mnist mnist.sif python3 /mnist/mnist_test.py --get-embeddings --load-model --model-path /mnist/mnist_cnn.pt
 
 
 # Fuzzy PyTorch Inference -- takes approx 3 mins
-#time apptainer exec -B ../mnist:/mnist fuzzy_pytorch.sif python3 /mnist/mnist_test_embeddings.py --load-model --model-path /mnist/mnist_cnn.pt
+#time apptainer exec -B ../mnist:/mnist fuzzy_pytorch.sif python3 /mnist/mnist_test.py --get-embeddings --load-model --model-path /mnist/mnist_cnn.pt
 
 #Verrou Inference
-time apptainer exec -B ../mnist:/mnist verrou_mnist.sif valgrind --tool=verrou --rounding-mode=random --mca-mode=rr -s --check-nan=no python3 /mnist/mnist_test_embeddings.py --load-model --model-path /mnist/mnist_cnn.pt
+time apptainer exec -B ../mnist:/mnist verrou_mnist.sif valgrind --tool=verrou --rounding-mode=random --mca-mode=rr -s --check-nan=no python3 /mnist/mnist_test.py --get-embeddings --load-model --model-path /mnist/mnist_cnn.pt

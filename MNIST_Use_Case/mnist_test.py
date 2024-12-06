@@ -11,6 +11,7 @@ import os
 import pickle
 import logging
 
+DIRECTORY = 'verrou'
 
 #logger = logging.getLogger(__name__)
 #logging.basicConfig(filename=f"/mnist/fuzzy_mnist_test2_{os.environ['TASK_ID']}.log", level=logging.INFO)
@@ -40,7 +41,62 @@ class Net(nn.Module):
         output = F.log_softmax(x, dim=1)
         return output
 
+class Net_Embed(nn.Module):
+    def __init__(self):
+        super(Net, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, 3, 1)
+        self.conv2 = nn.Conv2d(32, 64, 3, 1)
+        self.dropout1 = nn.Dropout(0.25)
+        self.dropout2 = nn.Dropout(0.5)
+        self.fc1 = nn.Linear(9216, 128)
+        self.fc2 = nn.Linear(128, 10)
 
+    def forward(self, x):
+        x = self.conv1(x)
+        pickle.dump(x, open(f"/mnist/embeddings/{DIRECTORY}/conv1_{os.environ['TASK_ID']}.pkl", 'wb'))
+        x = F.relu(x)
+        x = self.conv2(x)
+        pickle.dump(x, open(f"/mnist/embeddings/{DIRECTORY}/conv2_{os.environ['TASK_ID']}.pkl", 'wb'))
+        x = F.relu(x)
+        x = F.max_pool2d(x, 2)
+        pickle.dump(x, open(f"/mnist/embeddings/{DIRECTORY}/pool_{os.environ['TASK_ID']}.pkl", 'wb'))
+        x = self.dropout1(x)
+        x = torch.flatten(x, 1)
+        x = self.fc1(x)
+        pickle.dump(x, open(f"/mnist/embeddings/{DIRECTORY}/fc1_{os.environ['TASK_ID']}.pkl", 'wb'))
+        x = F.relu(x)
+        x = self.dropout2(x)
+        x = self.fc2(x)
+        pickle.dump(x, open(f"/mnist/embeddings/{DIRECTORY}/fc2_{os.environ['TASK_ID']}.pkl", 'wb'))
+        output = F.log_softmax(x, dim=1)
+        return output
+
+def get_test_embeddings(model, device, test_loader):
+    model.eval()
+    test_loss = 0
+    correct = 0
+    metrics = {'output': [], 'pred':[], 'target':[], 'loss': []}
+    #metrics = {'pred':[], 'target':[] }
+    with torch.no_grad():
+        for data, target in test_loader:
+            #logger.info(f'Before {data.shape}')
+            data, target = data.to(device), target.to(device)
+            output = model(data)
+            batch_loss = F.nll_loss(output, target, reduction='sum').item() 
+            test_loss += batch_loss  # sum up batch loss
+            pred = output.argmax(dim=1, keepdim=True)  # get the index of the max log-probability
+            correct += pred.eq(target.view_as(pred)).sum().item()
+            break
+
+
+    test_loss /= len(test_loader.dataset)
+
+    # print(f'\nTest set: Average loss: {test_loss}')
+    print('\nTest set: Average loss: {:}, Accuracy: {}/{} ({:}%)\n'.format(
+       test_loss, correct, len(test_loader.dataset),
+       100. * correct / len(test_loader.dataset)))
+
+    return metrics
 
 
 def test(model, device, test_loader):
@@ -102,6 +158,8 @@ def main():
                         help='For Saving the current Model')
     parser.add_argument('--load-model', action='store_true', default=False,
                         help='For loading the model')
+    parser.add_argument('--get-embeddings', action='store_true', default=False,
+                        help='For loading the model')
     parser.add_argument('--model-path', type=str)
 
     #logger = logging.getLogger(__name__)
@@ -137,14 +195,22 @@ def main():
     test_loader = torch.utils.data.DataLoader(dataset2, **test_kwargs)
 
     print(len(dataset2))
-    model = Net().to(device)
+    if args.get_embeddings:
+        model = Net_Embed().to(device)
+    
+    else:
+        model = Net().to(device)
     
     if args.load_model:
         model.load_state_dict(torch.load(args.model_path))
     
-    metrics = test(model, device, test_loader)
-    
-    pickle.dump(metrics, open(f"/mnist/fuzzy_singlethread/test_metrics_{os.environ['TASK_ID']}.pkl", 'wb'))
+    if args.get_embeddings:
+        _ = get_test_embeddings(model, device, test_loader)
+
+    else:
+        metrics = test(model, device, test_loader)
+        
+        pickle.dump(metrics, open(f"/mnist/{DIRECTORY}/test_metrics_{os.environ['TASK_ID']}.pkl", 'wb'))
 
     #GET MODEL EMBEDDINGS
     # model2 = create_feature_extractor(model, return_nodes={'conv1':'conv1'}).to(device)
