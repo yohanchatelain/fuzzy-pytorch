@@ -1,0 +1,7 @@
+FROM freesurfer/freesurfer:7.3.1
+
+COPY license.txt $FREESURFER_HOME/.license
+
+ENTRYPOINT [ "/bin/bash" ]
+
+
