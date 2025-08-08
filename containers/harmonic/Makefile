@@ -1,7 +1,7 @@
 INCLUDE=-I${VIRTUAL_ENV}/include
 LIB=-L${VIRTUAL_ENV}/lib
 
-FLAGS_OPT=-O3 -march=native
+FLAGS_OPT=-O3 -march=haswell -mtune=haswell -maes
 FLAGS_DEBUG=-Og
 
 PRSIM_SR_DEBUG_FLAGS=--prism-backend=sr --prism-backend-dispatch=dynamic --verbose
