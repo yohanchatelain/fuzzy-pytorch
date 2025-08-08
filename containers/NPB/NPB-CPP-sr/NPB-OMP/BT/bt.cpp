@@ -1,0 +1,1 @@
+../../../.NPB-CPP/NPB-OMP/BT/bt_sr.cpp

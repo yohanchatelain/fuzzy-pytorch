@@ -1,0 +1,1 @@
+../../../.NPB-CPP/NPB-OMP/MG/mg_sr.cpp
