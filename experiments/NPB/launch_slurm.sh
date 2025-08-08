@@ -1,6 +1,7 @@
 #!/bin/bash
 
-CONTAINER_IMAGE=big-data-lab-team/fuzzy-pytorch:paper-experiments-npb
+CONTAINER_IMAGE=../../containers/fuzzy-pytorch-npb.sif
+
 
 # Create results directory if it doesn't exist
 mkdir -p "${PWD}/run-SER"
