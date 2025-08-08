@@ -4,11 +4,11 @@ LIB=-L${VIRTUAL_ENV}/lib
 FLAGS_OPT=-O3 -march=native
 FLAGS_DEBUG=-Og
 
-PRSIM_SR_DEBUG_FLAGS="--prism-backend=sr --prism-backend-dispatch=dynamic --verbose"
-PRSIM_SR_PERF_FLAGS="--prism-backend=sr --prism-backend-dispatch=static --verbose"
+PRSIM_SR_DEBUG_FLAGS=--prism-backend=sr --prism-backend-dispatch=dynamic --verbose
+PRSIM_SR_PERF_FLAGS=--prism-backend=sr --prism-backend-dispatch=static --verbose
 
-PRISM_UD_DEBUG_FLAGS="--prism-backend=up-down --prism-backend-dispatch=dynamic --verbose"
-PRISM_UD_PERF_FLAGS="--prism-backend=up-down --prism-backend-dispatch=dynamic --verbose"
+PRISM_UD_DEBUG_FLAGS=--prism-backend=up-down --prism-backend-dispatch=dynamic --verbose
+PRISM_UD_PERF_FLAGS=--prism-backend=up-down --prism-backend-dispatch=dynamic --verbose
 
 SRC=src/harmonic.c
 CADNA_SRC=src/harmonic_cadna.c

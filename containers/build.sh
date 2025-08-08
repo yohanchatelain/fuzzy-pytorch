@@ -1,5 +1,8 @@
 #!/bin/bash
 
+set -e
+set -o pipefail
+
 # Building Docker images for tools used in experiments
 docker build . -f Dockerfile-tools -t big-data-lab-team/fuzzy-pytorch:paper-experiments-tools
 
