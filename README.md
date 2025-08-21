@@ -17,13 +17,46 @@ Fuzzy PyTorch provides tools and methodologies for evaluating numerical variabil
 │   ├── Dockerfile-NPB   # NPB benchmarks environment
 │   ├── Dockerfile-harmonic  # Harmonic series environment  
 │   ├── Dockerfile-tools # Deep learning environment
+│   ├── Dockerfile-fastsurfer  # FastSurfer with fuzzy Pytorch container definition (mode needs to be set)
+│   ├── Dockerfile-freesurfer  # FreeSurfer container definition
+│   ├── Dockerfile-pytorch-ud # MNIST/Base fuzzy Pytorch UD container definition
+│   ├── Dockerfile-pytorch-sr # MNIST/Base fuzzy Pytorch SR container definition
+│   ├── Dockerfile-wavlm # WavLM with fuzzy Pytorch container definition
 │   └── NPB/             # NPB source and build scripts
+│   └── harmonic/             # Harmonic source and build scripts
+│   └── tools/             # Additional scripts
 ├── experiments/         # Experimental evaluations
 │   ├── DL/              # Deep learning performance evaluation
+│   │   ├── Fuzzy_PyTorch.ipynb            # Main notebook with MNIST and FastSurfer results
+│   │   ├── FastSurfer_Use_Case/       # Experiments with FastSurfer models
+│   │   │   ├── allsub_fast.txt        # List run commands per subject for parallelization
+│   │   │   ├── fastsurfer_embeddings.pdf    # Embeddings visualization
+│   │   │   ├── ieee_subjects.txt      # IEEE subjects list
+│   │   │   ├── run_fuzzy.sh           # Run fuzzy experiments
+│   │   │   ├── run_verrou.sh          # Run Verrou experiment
+│   │   │   ├── subjects.txt           # All subjects list
+│   │   │   └── verrou_sr_min_dice_scores.csv   # Minimum Dice scores from Verrou SR FastSurfer inference
+│   │   │   └── verrou_ud_min_dice_scores.csv   # Minimum Dice scores from Verrou CESTAC FastSurfer inference
+│   │   │   └── fuzzy_sr_min_dice_scores.csv   # Minimum Dice scores from Fuzzy SR FastSurfer inference
+│   │   │   └── fuzzy_ud_min_dice_scores.csv   # Minimum Dice scores from Fuzzy UD FastSurfer inference
+│   │   │   └── ieee_min_dice_scores.csv   # Minimum Dice scores from IEEE default FastSurfer inference
+│   │   ├── MNIST_Use_Case/            # Experiments with MNIST dataset
+│   │   │   ├── mnist_test.py          # MNIST testing script
+│   │   │   ├── run_embedding.sh       # Run embedding experiments
+│   │   │   └── run_mnist.sh           # Run MNIST experiments
+│   │   └── WavLM_Use_Case/            # Experiments with WavLM speech model
+│   │   │   ├── WavLM.ipynb            # Main WavLM notebook
+│   │   │   ├── inference_only.py      # Script for inference
+│   │   │   ├── run_iter.sh            # Iterative run script
+│   │   │   ├── run_model.sh           # Model run script
+│   │   │   ├── run_verrou.sh          # Run Verrou instrumentation
+│   │   │   ├── train.yaml             # Training configuration
+│   │   ├── figures             
 │   ├── NPB/             # NAS Parallel Benchmarks analysis
 │   └── harmonics/       # Harmonic series numerical analysis
 └── README.md           # This file
 ```
+Building `Dockerfile-pytorch-ud` or `Dockerfile-pytorch-sr` requires the [Fuzzy](https://github.com/verificarlo/fuzzy) repository and replacing [fuzzy/docker/resources/pytorch/pytorch-vfc-exclude.txt](https://github.com/verificarlo/fuzzy/blob/master/docker/resources/pytorch/pytorch-vfc-exclude.txt) with the version found in `tools`
 
 ## Experiments
 
