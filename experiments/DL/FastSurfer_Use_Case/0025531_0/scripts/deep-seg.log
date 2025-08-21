@@ -1,0 +1,39 @@
+Log file for segmentation FastSurferCNN/run_prediction.py
+Tue Jan 14 02:15:31 UTC 2025
+
+python3.8 /fastsurfer/FastSurferCNN/run_prediction.py --t1 /data/0025531_norm.mgz --asegdkt_segfile /output/0025531_0/mri/aparc.DKTatlas+aseg.deep.mgz --conformed_name /output/0025531_0/mri/orig.mgz --brainmask_name /output/0025531_0/mri/mask.mgz --aseg_name /output/0025531_0/mri/aseg.auto_noCCseg.mgz --sid 0025531_0 --seg_log /output/0025531_0/scripts/deep-seg.log --vox_size min --batch_size 1 --viewagg_device auto --device cpu --allow_root
+[INFO: run_prediction.py:  392]: Checking or downloading default checkpoints ...
+[INFO: common.py:  102]: Using device: cpu
+[INFO: run_prediction.py:  133]: Running view aggregation on cpu
+[INFO: inference.py:  110]: Loading checkpoint /fastsurfer/checkpoints/aparc_vinn_coronal_v2.0.0.pkl
+[INFO: inference.py:  110]: Loading checkpoint /fastsurfer/checkpoints/aparc_vinn_sagittal_v2.0.0.pkl
+[INFO: inference.py:  110]: Loading checkpoint /fastsurfer/checkpoints/aparc_vinn_axial_v2.0.0.pkl
+[INFO: common.py:  479]: Single subject with absolute file path for input.
+[INFO: common.py:  492]: No subjects directory specified, but the parent directory of the output file /output/0025531_0/mri/aparc.DKTatlas+aseg.deep.mgz is 'mri', so we are assuming this is the 'mri' folder in the subject directory.
+[INFO: common.py:  534]: Analyzing single subject /data/0025531_norm.mgz
+[INFO: common.py:  612]: Output will be stored in Subjects Directory: /output
+[INFO: run_prediction.py:  193]: Successfully loaded image from /data/0025531_norm.mgz.
+[INFO: run_prediction.py:  279]: Successfully saved image   as mri/orig/001.mgz.
+[INFO: run_prediction.py:  267]: Output image directory orig.mgz does not exist. Creating it now...
+[INFO: run_prediction.py:  279]: Successfully saved image   as /output/0025531_0/mri/orig.mgz.
+[INFO: run_prediction.py:  243]: Run coronal prediction
+[INFO: dataset.py:   56]: Loading Coronal with input voxelsize (1.0, 1.0)
+[ERROR: inference.py:  229]: Exception in batch 180 of coronal inference.
+Traceback (most recent call last):
+  File "/fastsurfer/FastSurferCNN/inference.py", line 205, in eval
+    pred = self.model(images, scale_factors, out_scale)
+  File "/venv/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/fastsurfer/FastSurferCNN/models/networks.py", line 217, in forward
+    decoder_output1 = super().forward(encoder_output0, scale_factor=scale_factor)
+  File "/fastsurfer/FastSurferCNN/models/networks.py", line 91, in forward
+    decoder_output1 = self.decode1.forward(
+  File "/fastsurfer/FastSurferCNN/models/sub_module.py", line 483, in forward
+    out_block = super(CompetitiveDecoderBlock, self).forward(concat_max)
+  File "/fastsurfer/FastSurferCNN/models/sub_module.py", line 227, in forward
+    x2 = self.prelu(x2_max)
+  File "/venv/lib/python3.8/site-packages/torch/nn/modules/module.py", line 1130, in _call_impl
+    return forward_call(*input, **kwargs)
+  File "/venv/lib/python3.8/site-packages/torch/nn/modules/activation.py", line 1226, in forward
+    return F.prelu(input, self.weight)
+KeyboardInterrupt

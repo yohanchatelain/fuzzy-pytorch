@@ -1,0 +1,28 @@
+FROM big-data-lab-team/fuzzy-pytorch:sr
+
+# Upgrade pip and setuptools
+RUN pip install --upgrade pip setuptools
+
+#Install necessary libraries
+#RUN pip install torchaudio==2.2.0 --index-url https://download.pytorch.org/whl/cpu --no-deps
+
+RUN apt-get update && apt-get install -y curl
+
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y 
+ENV HOME="/root"
+ENV CARGO_HOME="$HOME/.cargo"
+ENV RUSTUP_HOME="$HOME/.rustup"
+ENV PATH="${CARGO_HOME}/bin:${PATH}"
+#RUN rustc --version && cargo --version
+RUN echo "$PATH"
+RUN bash -c "source /root/.cargo/env"
+#RUN bash -c "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && \
+#    source "$HOME/.cargo/env" && \
+#    rustc --version && cargo --version"
+
+RUN apt-get update && apt-get install libsndfile1 -y
+RUN pip install speechbrain==1.0.2 soundfile==0.13.1 transformers==4.37.2 numpy==1.24.1 --no-deps
+RUN pip install  joblib==1.4.2 tokenizers==0.15.0 huggingface_hub==0.29.3 tqdm==4.67.1 regex==2024.11.6 safetensors==0.5.3 hyperpyyaml==1.2.2 ruamel.yaml==0.18.10 --no-deps
+
+
+ENTRYPOINT [ "/bin/bash" ]
