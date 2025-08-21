@@ -1,0 +1,6 @@
+FROM big-data-lab-team/fuzzy-pytorch:paper-experiments-tools
+
+COPY NPB /build/NPB
+
+RUN cd /build/NPB && \
+  ./build.sh
