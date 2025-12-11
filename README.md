@@ -1,11 +1,17 @@
 # Fuzzy PyTorch: Rapid Numerical Variability Evaluation for Deep Learning Models
 
 This repository contains the experimental code and reproducibility artifacts for the paper "Fuzzy PyTorch: Rapid Numerical Variability Evaluation for Deep Learning Models".
-
+  
 ## Overview
 
 Fuzzy PyTorch provides tools and methodologies for evaluating numerical variability and floating-point precision effects in deep learning models. This repository contains three main experimental evaluations comparing various floating-point error analysis tools:
 
+**Key Capabilities:**
+- Analyze numerical variability effects on deep learning models
+- Implement stochastic rounding (SR) and up-down (UD) rounding modes
+- Minimal code modifications required
+
+**Use Cases:**
 - **Deep Learning Benchmarks**: Performance evaluation on real-world ML models (MNIST, FastSurfer, WavLM)
 - **Harmonic Series Analysis**: Numerical accuracy assessment using mathematical series computations
 - **NAS Parallel Benchmarks**: Performance overhead analysis using standard HPC benchmarks
@@ -78,15 +84,31 @@ Measures performance overhead of various floating-point error analysis tools usi
 
 ## Quick Start
 
-1. **Build containers**:
+Fuzzy PyTorch integrates stochastic arithmetic directly into PyTorch's execution pipeline by combining the Verificarlo compiler with the PRISM backend. This enables rapid numerical variability analysis without modifying your model code or architecture.
+
+
+> **⚠️ Platform Support:** Fuzzy PyTorch is currently designed for Linux systems. macOS and Windows are not officially supported. All build instructions, container recipes, and command-line examples assume a Linux environment.
+
+
+Before diving into experiments, familiarize yourself with Verificarlo's architecture and PRISM backend:
+
+- **Verificarlo Repository:** https://github.com/verificarlo/verificarlo
+  - Complete documentation on numerical backends and usage patterns
+  
+- **PRISM Backend Documentation:** https://github.com/verificarlo/verificarlo/blob/master/doc/02-Backends.md#prism-backend
+  - Usage instructions, limitations, and configuration options
+
+### Building Fuzzy PyTorch
+**Build containers**:
    ```bash
    cd containers
    ./build.sh
    ```
 
-2. **Run experiments**: Navigate to each experiment directory and follow the instructions in their respective README files.
+### Reproducing Experiments
+**Run experiments**: Navigate to each experiment directory and follow the instructions in their respective README files.
 
-3. **Generate figures**: Execute the Jupyter notebooks in each experiment directory to reproduce the analysis and figures.
+**Generate figures**: Execute the Jupyter notebooks in each experiment directory to reproduce the analysis and figures.
 
 ## Tools Evaluated
 
