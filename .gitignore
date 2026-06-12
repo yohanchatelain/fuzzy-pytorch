@@ -1,3 +1,4 @@
 .vscode/PythonImportHelper-v2-Completion.json
 experiments/harmonic/results/
 containers/docker/
+experiments/DL/MNIST_Variable_Precision/mnist_sr_experiment/
