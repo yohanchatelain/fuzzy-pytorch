@@ -2,8 +2,10 @@
 experiments/harmonic/results/
 containers/docker/
 experiments/DL/MNIST_Variable_Precision/mnist_sr_experiment/
-experiments/LLM/hf_cache/
 experiments/LLM/ppl_logs/
+experiments/LLM/perplexity_logs/
 experiments/LLM/run_logs/
 experiments/LLM/*.csv
 experiments/LLM/*.png
+**/hf_cache/
+**/__pycache__/

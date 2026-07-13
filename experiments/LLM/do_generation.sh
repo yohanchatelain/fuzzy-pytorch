@@ -30,18 +30,14 @@ for prec in "${PRECISIONS[@]}"; do
     fi
 
     # Run in background and redirect output to a log file
-    # We try running directly if transformers is pre-installed in the image,
-    # otherwise we run pip install dynamically inside the container.
     podman run --rm \
-        -v "$(pwd)/hf_cache:/hf_cache" \
-        -v "$(pwd)/test_llm.py:/test_llm.py:ro" \
-        -e HF_HOME=/hf_cache \
+        -e PYTHONPATH="/experiments/LLM/omp_ext" \
         -e OMP_NUM_THREADS=1 \
         -e MKL_NUM_THREADS=1 \
         -e VFC_BACKENDS="$VFC_BACKEND" \
-        localhost/big-data-lab-team/fuzzy-pytorch:sr \
-        python3 -u /test_llm.py > "$LOG_DIR/prec_$prec.log" 2>&1 &
-    
+        localhost/big-data-lab-team/fuzzy-llm-experiments:latest \
+        python3 -u test_llm.py > "$LOG_DIR/prec_$prec.log" 2>&1 &
+
     pids+=($!)
     job_precs+=($prec)
 done
@@ -64,7 +60,7 @@ for prec in "${PRECISIONS[@]}"; do
     echo "--------------------------------------------------------" >> "$OUTPUT_FILE"
     echo "Precision: $prec bits" >> "$OUTPUT_FILE"
     echo "--------------------------------------------------------" >> "$OUTPUT_FILE"
-    
+
     # Extract the generated text between "--- GENERATED TEXT ---" and "----------------------"
     if grep -q -e "--- GENERATED TEXT ---" "$log_file"; then
         sed -n '/--- GENERATED TEXT ---/,/----------------------/p' "$log_file" | sed '1d;$d' >> "$OUTPUT_FILE"

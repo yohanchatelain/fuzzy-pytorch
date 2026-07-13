@@ -12,7 +12,7 @@ OUTPUT_CSV="perplexity_results.csv"
 echo "precision,perplexity" > "$OUTPUT_CSV"
 
 # Temporary directory for logs
-LOG_DIR="ppl_logs"
+LOG_DIR="perplexity_logs/global"
 mkdir -p "$LOG_DIR"
 
 echo "Starting parallel runs for precisions: ${PRECISIONS[*]}..."
@@ -29,14 +29,12 @@ for prec in "${PRECISIONS[@]}"; do
 
     # Run in background and redirect output to a log file
     podman run --rm \
-        -v "$(pwd)/hf_cache:/hf_cache" \
-        -v "$(pwd)/test_perplexity.py:/test_perplexity.py:ro" \
-        -e HF_HOME=/hf_cache \
+        -e PYTHONPATH="/experiments/LLM/omp_ext" \
         -e OMP_NUM_THREADS=1 \
         -e MKL_NUM_THREADS=1 \
         -e VFC_BACKENDS="$VFC_BACKEND" \
-        localhost/big-data-lab-team/fuzzy-pytorch:sr \
-        python3 -u /test_perplexity.py > "$LOG_DIR/prec_$prec.log" 2>&1 &
+        localhost/big-data-lab-team/fuzzy-llm-experiments:latest \
+        python3 -u test_perplexity.py > "$LOG_DIR/prec_$prec.log" 2>&1 &
     
     pids+=($!)
     job_precs+=($prec)

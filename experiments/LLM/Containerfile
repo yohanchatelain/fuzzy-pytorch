@@ -1,0 +1,25 @@
+FROM localhost/big-data-lab-team/fuzzy-pytorch:sr
+
+# Set compilers to verificarlo wrappers
+ENV CC=verificarlo-c
+ENV CXX=verificarlo-c++
+
+# Create HF cache directory and set environment variable
+ENV HF_HOME=/hf_cache
+RUN mkdir -p /hf_cache
+
+# Pre-download the distilgpt2 model from Hugging Face
+RUN python3 -c "from transformers import AutoModelForCausalLM, AutoTokenizer; AutoTokenizer.from_pretrained('distilgpt2'); AutoModelForCausalLM.from_pretrained('distilgpt2')"
+
+# Set working directory for the experiment
+WORKDIR /experiments/LLM
+
+# Copy and compile the omp_ext module
+COPY omp_ext ./omp_ext
+RUN cd omp_ext && \
+    python3 setup.py build_ext --inplace
+
+
+# Copy all python scripts to the experiments/LLM directory inside the image
+# This is done last so that changes to the scripts only rebuild this final layer
+COPY *.py ./
