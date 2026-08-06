@@ -9,39 +9,56 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 WIKITEXT_URL = "https://raw.githubusercontent.com/pytorch/examples/master/word_language_model/data/wikitext-2/test.txt"
 LOCAL_CACHE_FILE = "wikitext-2-test.txt"
 
-# Interflop/OpenMP extensions loading for dynamic precision hooks
+# Interflop/OpenMP extensions loading for dynamic precision hooks.
+#
+# Without omp_ext the per-module hooks below cannot change anything, and the run
+# silently degrades to full precision while still producing a plausible-looking
+# perplexity. That failure is indistinguishable from a real result in the logs,
+# so it is fatal rather than a warning.
 try:
     import omp_ext
-    HAS_INTERFLOP = True
-    print("Successfully loaded omp_ext for PRISM TLS broadcasting")
-    def set_precision(precision, is_binary64=False):
-        omp_ext.set_precision(precision)
-    def set_rounding_mode(mode):
-        omp_ext.set_rounding_mode(mode)
-except ImportError:
-    print("Warning: omp_ext not found. Proceeding without precision changes.")
-    HAS_INTERFLOP = False
-    def set_precision(precision, is_binary64=False):
-        pass
-    def set_rounding_mode(mode):
-        pass
+except ImportError as exc:
+    raise ImportError(
+        "omp_ext is required: without it the per-module precision hooks are "
+        "no-ops and every sweep silently runs at full precision. Build it with "
+        "`cd omp_ext && python3 setup.py build_ext --inplace` and put it on "
+        "PYTHONPATH."
+    ) from exc
+
+print("Successfully loaded omp_ext for PRISM TLS broadcasting")
+
+def set_precision(precision, is_binary64=False):
+    omp_ext.set_precision(precision)
+    applied = omp_ext.get_precision()
+    if applied != precision:
+        raise RuntimeError(
+            f"PRISM precision did not take effect: asked for {precision}, "
+            f"thread reports {applied}"
+        )
+
+def set_rounding_mode(mode):
+    omp_ext.set_rounding_mode(mode)
+    applied = omp_ext.get_rounding_mode()
+    if applied != mode:
+        raise RuntimeError(
+            f"PRISM rounding mode did not take effect: asked for {mode}, "
+            f"thread reports {applied}"
+        )
 
 def make_pre_hook(target_precision, target_mode=None):
     """Creates a pre-hook to drop precision and optionally change rounding mode (0:SR, 1:RN) before the module runs."""
     def hook(module, input):
-        if HAS_INTERFLOP:
-            set_precision(target_precision, is_binary64=False)
-            if target_mode is not None:
-                set_rounding_mode(target_mode)
+        set_precision(target_precision, is_binary64=False)
+        if target_mode is not None:
+            set_rounding_mode(target_mode)
     return hook
 
 def make_post_hook(default_precision, default_mode=None):
     """Creates a post-hook to restore precision and optionally rounding mode (0:SR, 1:RN) after the module runs."""
     def hook(module, input, output):
-        if HAS_INTERFLOP:
-            set_precision(default_precision, is_binary64=False)
-            if default_mode is not None:
-                set_rounding_mode(default_mode)
+        set_precision(default_precision, is_binary64=False)
+        if default_mode is not None:
+            set_rounding_mode(default_mode)
     return hook
 
 def load_wikitext_slice(tokenizer, fraction=100):

@@ -13,8 +13,7 @@ def main():
     torch.manual_seed(42)
 
     # We want everything else at 10 bits, so we set global precision to 10 bits.
-    if eval_utils.HAS_INTERFLOP:
-        eval_utils.set_precision(24)
+    eval_utils.set_precision(24)
 
     model_id = "distilgpt2"
     print(f"Loading {model_id}...")
