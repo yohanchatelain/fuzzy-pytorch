@@ -1,80 +1,50 @@
 #!/bin/bash
 set -e
+source "$(dirname "$0")/sweep_common.sh"
 
 # Arguments
 CONTEXT_LENGTH="${1:-384}"
 MODE="${2:-sr}"
+MAX_JOBS="${3:-$MAX_JOBS}"
+
+# See do_fine_perplexity.sh: score several windows, not one.
+MAX_TOKENS="${MAX_TOKENS:-1024}"
 
 if [ "$MODE" != "sr" ] && [ "$MODE" != "rn" ]; then
     echo "Error: Mode must be 'sr' or 'rn'."
-    echo "Usage: $0 [context_length] [mode]"
+    echo "Usage: $0 [context_length] [mode] [max_jobs]"
     exit 1
 fi
 
-# Organize log directory
-if [ "$MODE" = "sr" ]; then
-    LOG_DIR="perplexity_logs/${CONTEXT_LENGTH}/ppl_percomponents_sr"
-else
-    LOG_DIR="perplexity_logs/${CONTEXT_LENGTH}/ppl_percomponents_rn"
-fi
-
+LOG_DIR="${RESULTS_ROOT}/${CONTEXT_LENGTH}/ppl_percomponents_${MODE}"
 mkdir -p "$LOG_DIR"
 
 TARGET_GROUPS=("attention" "mlp" "lm_head")
 PRECISIONS=(4 6 8 10)
-MAX_JOBS=6
 
-echo "Starting per-component perplexity evaluation (Context Length: ${CONTEXT_LENGTH}, Mode: ${MODE}, Max Jobs: ${MAX_JOBS})..."
-echo "Logs will be written to ${LOG_DIR}"
+SEEDS=$(seeds_for_mode "$MODE")
 
-VFC_BACKEND="libinterflop_prism.so"
+echo "Per-component sweep"
+echo "  context/window: ${CONTEXT_LENGTH}   tokens scored: ${MAX_TOKENS}"
+echo "  mode:           ${MODE}   seeds: ${SEEDS}"
+echo "  runtime:        ${CONTAINER_RUNTIME}   max jobs: ${MAX_JOBS}"
+echo "  logs:           ${LOG_DIR}"
 
-running=0
-
-run_config() {
-    local group=$1
-    local prec=$2
-    local log_file="$LOG_DIR/group_${group}_prec_${prec}.log"
-    
-    echo "Starting $group at precision $prec..."
-    
-    local backend_opts="libinterflop_prism.so"
-    if [ "$MODE" = "rn" ]; then
-        backend_opts="libinterflop_prism.so --mode=rn"
-    fi
-
-    local opts=(
-        --rm
-        -e PYTHONPATH="/experiments/LLM/omp_ext"
-        -e OMP_NUM_THREADS=1
-        -e MKL_NUM_THREADS=1
-        -e VFC_BACKENDS="$backend_opts"
-    )
-    
-    podman run "${opts[@]}" \
-        localhost/big-data-lab-team/fuzzy-llm-experiments:latest \
-        python3 -u test_percomponent_perplexity.py \
-            --group "$group" \
-            --precision "$prec" \
-            --context_length "$CONTEXT_LENGTH" > "$log_file" 2>&1
-    
-    echo "Completed $group at precision $prec"
-}
+ensure_dataset_cache
 
 for group in "${TARGET_GROUPS[@]}"; do
     for prec in "${PRECISIONS[@]}"; do
-        
-        run_config "$group" "$prec" &
-        running=$((running + 1))
-        
-        # If we reached max concurrent jobs, wait for at least one to finish
-        if [ "$running" -ge "$MAX_JOBS" ]; then
-            wait -n || true
-            running=$((running - 1))
-        fi
+        for seed in $SEEDS; do
+            log_file="$LOG_DIR/group_${group}_prec_${prec}_seed_${seed}.log"
+            [ -f "$log_file" ] && { echo "skip (exists): $log_file"; continue; }
+            throttle
+            echo "Starting $group prec=$prec seed=$seed"
+            run_container "$log_file" "$(backend_opts "$MODE" "$seed")" \
+                test_percomponent_perplexity.py --group "$group" --precision "$prec" \
+                --context_length "$CONTEXT_LENGTH" --max_tokens "$MAX_TOKENS" &
+        done
     done
 done
 
-# Wait for all remaining background jobs to finish
 wait
-echo "All ${MODE} runs completed. Logs are in ${LOG_DIR}"
+echo "All ${MODE} runs completed. Logs in ${LOG_DIR}"

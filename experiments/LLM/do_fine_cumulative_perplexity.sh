@@ -1,80 +1,56 @@
 #!/bin/bash
 set -e
+source "$(dirname "$0")/sweep_common.sh"
 
 # Arguments
 CONTEXT_LENGTH="${1:-256}"
 MODE="${2:-sr}"
-MAX_JOBS="${3:-6}"
+MAX_JOBS="${3:-$MAX_JOBS}"
+
+# As in the blockwise sweep: a propagation curve, not a headline number.
+MAX_TOKENS="${MAX_TOKENS:-$CONTEXT_LENGTH}"
 
 if [ "$MODE" != "sr" ] && [ "$MODE" != "rn" ]; then
     echo "Error: Mode must be 'sr' or 'rn'."
     echo "Usage: $0 [context_length] [mode] [max_jobs]"
-    echo "Example: $0 256 sr 10"
     exit 1
 fi
 
-TARGET_LAYERS=("attn_c_attn" "attn_c_proj" "mlp_c_fc" "mlp_c_proj")
+# Restricted to the 3072-length reduction, as in do_fine_blockwise_perplexity.sh.
+TARGET_LAYERS=("mlp_c_proj")
 PRECISIONS=(4 6)
 BLOCK_CONFIGS=("0" "0-1" "0-2" "0-3" "0-4" "0-5")
 
-echo "Starting cumulative fine-grained perplexity evaluation (Bottom-Up)..."
-echo "Context Length: ${CONTEXT_LENGTH}"
-echo "Rounding Mode:  ${MODE}"
-echo "Max Jobs:       ${MAX_JOBS}"
+SEEDS=$(seeds_for_mode "$MODE")
+LOG_DIR="${RESULTS_ROOT}/${CONTEXT_LENGTH}/cumulative_${MODE}"
+mkdir -p "$LOG_DIR"
 
-running=0
+echo "Cumulative sweep"
+echo "  context/window: ${CONTEXT_LENGTH}   tokens scored: ${MAX_TOKENS}"
+echo "  layers:         ${TARGET_LAYERS[*]}"
+echo "  mode:           ${MODE}   seeds: ${SEEDS}"
+echo "  runtime:        ${CONTAINER_RUNTIME}   max jobs: ${MAX_JOBS}"
+echo "  logs:           ${LOG_DIR}"
 
-run_config() {
-    local block_conf=$1
-    local layer=$2
-    local prec=$3
-    local log_dir="perplexity_logs/${CONTEXT_LENGTH}/fine_${MODE}_cumul_${block_conf}"
-    mkdir -p "$log_dir"
-    local log_file="$log_dir/layer_${layer}_prec_${prec}.log"
-    
-    echo "Starting Cumulative Blocks ${block_conf}, Layer ${layer} at precision ${prec}..."
-    
-    local backend_opts="libinterflop_prism.so"
-    if [ "$MODE" = "rn" ]; then
-        backend_opts="libinterflop_prism.so --mode=rn"
-    fi
+ensure_dataset_cache
 
-    local opts=(
-        --rm
-        -e PYTHONPATH="/experiments/LLM/omp_ext"
-        -e OMP_NUM_THREADS=1
-        -e MKL_NUM_THREADS=1
-        -e VFC_BACKENDS="$backend_opts"
-    )
-    
-    podman run "${opts[@]}" \
-        localhost/big-data-lab-team/fuzzy-llm-experiments:latest \
-        python3 -u test_fine_perplexity.py \
-            --layer "$layer" \
-            --precision "$prec" \
-            --block_idx "$block_conf" \
-            --context_length "$CONTEXT_LENGTH" > "$log_file" 2>&1
-    
-    echo "Completed Cumulative Blocks ${block_conf}, Layer ${layer} at precision ${prec}"
-}
-
-# Sweep block configs, layers, and precisions
 for block_conf in "${BLOCK_CONFIGS[@]}"; do
     for layer in "${TARGET_LAYERS[@]}"; do
         for prec in "${PRECISIONS[@]}"; do
-            
-            run_config "$block_conf" "$layer" "$prec" &
-            running=$((running + 1))
-            
-            # If we reached max concurrent jobs, wait for at least one to finish
-            if [ "$running" -ge "$MAX_JOBS" ]; then
-                wait -n || true
-                running=$((running - 1))
-            fi
+            for seed in $SEEDS; do
+                safe_conf="${block_conf//-/_}"
+                log_file="$LOG_DIR/blocks_${safe_conf}_layer_${layer}_prec_${prec}_seed_${seed}.log"
+                [ -f "$log_file" ] && { echo "skip (exists): $log_file"; continue; }
+                throttle
+                echo "Starting blocks=$block_conf $layer prec=$prec seed=$seed"
+                run_container "$log_file" "$(backend_opts "$MODE" "$seed")" \
+                    test_fine_perplexity.py --layer "$layer" --precision "$prec" \
+                    --block_idx "$block_conf" --context_length "$CONTEXT_LENGTH" \
+                    --max_tokens "$MAX_TOKENS" &
+            done
         done
     done
 done
 
-# Wait for all remaining background jobs to finish
 wait
-echo "All cumulative fine-grained runs completed for mode=${MODE}."
+echo "All cumulative runs completed for mode=${MODE}. Logs in ${LOG_DIR}"

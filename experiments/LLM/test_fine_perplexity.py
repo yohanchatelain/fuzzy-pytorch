@@ -17,7 +17,15 @@ def main():
         help="Target layer/module type to reduce precision."
     )
     parser.add_argument("--precision", type=int, required=True, help="Simulated significand bitwidth.")
-    parser.add_argument("--context_length", type=int, default=256, help="Context length for evaluation.")
+    parser.add_argument("--context_length", type=int, default=256, help="Sliding window length (and stride) for evaluation.")
+    parser.add_argument(
+        "--max_tokens",
+        type=int,
+        default=None,
+        help="Total tokens to score. Defaults to context_length, which scores a "
+             "single window and gives a high-variance perplexity comparable only "
+             "within a sweep level. Set larger (e.g. 1024) to average several windows.",
+    )
     parser.add_argument(
         "--block_idx", 
         type=str, 
@@ -30,10 +38,11 @@ def main():
 
     max_length = args.context_length
     stride = args.context_length
-    max_tokens = args.context_length
+    max_tokens = args.max_tokens if args.max_tokens is not None else args.context_length
     seq_len = min(encodings.input_ids.size(1), max_tokens)
 
-    print(f"\nTotal tokens to evaluate: {seq_len}")
+    n_windows = max(1, -(-seq_len // stride))
+    print(f"\nTotal tokens to evaluate: {seq_len} in {n_windows} window(s) of {max_length}")
 
     # Determine which modules to instrument
     modules = []
