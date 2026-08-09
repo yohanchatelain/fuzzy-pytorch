@@ -46,6 +46,15 @@ CONFIG_RECIPES = {
         "lm_head": (10, SR_MODE),
         "block_rules": uniform_block_rules(6, SR_MODE, 6, SR_MODE)
     },
+    # Control isolating the block rule from the head rule. "pure_sr" differs
+    # from "mixed" at both the projections and the head, so a gap between them
+    # cannot be attributed to either alone; this holds the head at RN and varies
+    # only the blocks.
+    "pure_sr_rnhead": {
+        "desc": "6-bit SR on all layers, 10-bit RN on lm_head",
+        "lm_head": (10, RN_MODE),
+        "block_rules": uniform_block_rules(6, SR_MODE, 6, SR_MODE)
+    },
     "pure_rn_hybrid": {
         "desc": "8-bit RN on _proj, 6-bit RN on _attn & _fc, 10-bit RN on lm_head",
         "lm_head": (10, RN_MODE),
@@ -87,11 +96,17 @@ def main():
         choices=list(CONFIG_RECIPES.keys()),
         help="Select rounding mode configuration mix."
     )
+    parser.add_argument("--context_length", type=int, default=256,
+                        help="Sliding window length (and stride) for evaluation.")
+    parser.add_argument("--max_tokens", type=int, default=None,
+                        help="Total tokens to score; defaults to context_length, "
+                             "which scores a single window.")
     args = parser.parse_args()
 
     model, tokenizer, encodings = eval_utils.load_model_and_dataset("distilgpt2", fraction=100)
-    context_length = 256
-    seq_len = min(encodings.input_ids.size(1), context_length)
+    context_length = args.context_length
+    max_tokens = args.max_tokens if args.max_tokens is not None else context_length
+    seq_len = min(encodings.input_ids.size(1), max_tokens)
 
     recipe = CONFIG_RECIPES[args.config]
     print(f"\nEvaluating configuration: {args.config}")
