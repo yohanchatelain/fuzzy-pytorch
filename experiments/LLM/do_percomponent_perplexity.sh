@@ -20,7 +20,9 @@ LOG_DIR="${RESULTS_ROOT}/${CONTEXT_LENGTH}/ppl_percomponents_${MODE}"
 mkdir -p "$LOG_DIR"
 
 TARGET_GROUPS=("attention" "mlp" "lm_head")
-PRECISIONS=(4 6 8 10)
+# Unit spaced, as in do_fine_perplexity.sh: a two-bit grid cannot separate a
+# stagnation threshold from a steep trend.
+PRECISIONS=($(seq "${T_MIN:-4}" "${T_MAX:-14}"))
 
 SEEDS=$(seeds_for_mode "$MODE")
 

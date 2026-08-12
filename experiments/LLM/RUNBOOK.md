@@ -16,9 +16,21 @@ minutes, against several hours for a full image build.
 ```bash
 # on the node, with a PRISM checkout carrying the configuration epoch
 git clone https://github.com/verificarlo/prism && cd prism
-podman build \
+git checkout prism-config-epoch
+"${CONTAINER_RUNTIME:-podman}" build \
     -f /path/to/pablo-fuzzy-pytorch/containers/prism-refresh/Containerfile \
     -t localhost/big-data-lab-team/fuzzy-pytorch:sr-epoch .
+```
+
+On slashbin set `CONTAINER_RUNTIME=docker`; it has no podman. The same variable
+is read by `sweep_common.sh` and `run_remote_tmux.sh`.
+
+The epoch has to be in that checkout. Until the branch is pushed, copy the
+sources over instead of cloning:
+
+```bash
+tar -C ~/Work -cf - prism --exclude=.git --exclude=bazel-\* \
+    | ssh slashbin 'tar -xf - -C ~/'
 ```
 
 The build prints `PRISM refreshed: configuration epoch present` on success; it

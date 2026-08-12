@@ -44,7 +44,10 @@ ssh "$REMOTE_CONN" "loginctl enable-linger \$(whoami) 2>/dev/null || true"
 #    changes. The base must already carry a PRISM with the configuration epoch;
 #    see RUNBOOK.md for the one-off refresh that produces fuzzy-pytorch:sr-epoch.
 echo "==> Building container image on remote host '$REMOTE_CONN'..."
-ssh "$REMOTE_CONN" "cd ${REMOTE_ROOT} && podman build -t localhost/big-data-lab-team/fuzzy-llm-experiments:latest -f experiments/LLM/Containerfile ."
+# slashbin has docker and no podman, and sweep_common.sh already takes the
+# runtime from the environment, so this must too rather than hardcoding one.
+CONTAINER_RUNTIME="${CONTAINER_RUNTIME:-podman}"
+ssh "$REMOTE_CONN" "cd ${REMOTE_ROOT} && ${CONTAINER_RUNTIME} build -t localhost/big-data-lab-team/fuzzy-llm-experiments:latest -f experiments/LLM/Containerfile ."
 
 # 4. Detect tmux binary on remote host
 echo "==> Detecting tmux binary on remote host '$REMOTE_CONN'..."
