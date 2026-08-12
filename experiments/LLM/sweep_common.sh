@@ -32,21 +32,33 @@ backend_opts() {
 }
 
 # The scripts are mounted from the host rather than taken from the image, so
-# editing them does not mean rebuilding a 17 GB image. omp_ext still comes from
-# the image, where it was compiled against that image's PRISM.
+# editing them does not mean rebuilding a 17 GB image. fuzzy_torch, which sets
+# PRISM's precision and rounding mode, is installed in the image.
 SRC_DIR="${SRC_DIR:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 MOUNT_OPTS="${MOUNT_OPTS:-}"   # e.g. ":z" on SELinux hosts
+
+# Threads per run. PRISM reconciles a precision change with every running
+# thread, so a run no longer has to be pinned to one thread for the per-module
+# scoping to take effect; the pin is now only a way to bound how much of the
+# machine each concurrent container claims. Leave empty to let the container
+# decide. Set to 1 to reproduce the single-threaded control.
+THREADS_PER_RUN="${THREADS_PER_RUN:-}"
+
+thread_env() {
+    [ -z "$THREADS_PER_RUN" ] && return 0
+    printf '%s' "-e OMP_NUM_THREADS=${THREADS_PER_RUN} -e MKL_NUM_THREADS=${THREADS_PER_RUN}"
+}
 
 # Run one configuration. Args: <log file> <backend opts> <python args...>
 run_container() {
     local log_file=$1; shift
     local backend=$1; shift
+    # shellcheck disable=SC2046  # word splitting is what thread_env is for
     "$CONTAINER_RUNTIME" run --rm \
         -v "${SRC_DIR}:/workspace${MOUNT_OPTS}" \
         -w /workspace \
-        -e PYTHONPATH="/experiments/LLM/omp_ext:/workspace" \
-        -e OMP_NUM_THREADS=1 \
-        -e MKL_NUM_THREADS=1 \
+        -e PYTHONPATH="/workspace" \
+        $(thread_env) \
         -e VFC_BACKENDS="$backend" \
         "$IMAGE" \
         python3 -u "$@" > "$log_file" 2>&1
@@ -61,7 +73,7 @@ ensure_dataset_cache() {
     echo "==> Priming WikiText-2 cache at ${cache}"
     "$CONTAINER_RUNTIME" run --rm \
         -v "${SRC_DIR}:/workspace${MOUNT_OPTS}" -w /workspace \
-        -e PYTHONPATH="/experiments/LLM/omp_ext:/workspace" \
+        -e PYTHONPATH="/workspace" \
         "$IMAGE" python3 -c "
 from transformers import AutoTokenizer
 import eval_utils

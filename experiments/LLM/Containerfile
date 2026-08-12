@@ -1,4 +1,14 @@
-FROM localhost/big-data-lab-team/fuzzy-pytorch:sr
+# Build from the repository root, which is the context this needs:
+#   podman build -f experiments/LLM/Containerfile -t fuzzy-llm-experiments .
+#
+# The base image must carry a PRISM with the configuration epoch (a runtime
+# precision change reaching threads that have already rounded) and a
+# Verificarlo whose PRISM backend forwards the precision and rounding-mode
+# usercalls. fuzzy_torch refuses to run against anything older, so a mismatch
+# fails at the first precision change rather than producing a plausible-looking
+# perplexity at full precision.
+ARG BASE=localhost/big-data-lab-team/fuzzy-pytorch:sr-epoch
+FROM ${BASE}
 
 # Set compilers to verificarlo wrappers
 ENV CC=verificarlo-c
@@ -11,15 +21,15 @@ RUN mkdir -p /hf_cache
 # Pre-download the distilgpt2 model from Hugging Face
 RUN python3 -c "from transformers import AutoModelForCausalLM, AutoTokenizer; AutoTokenizer.from_pretrained('distilgpt2'); AutoModelForCausalLM.from_pretrained('distilgpt2')"
 
+# fuzzy_torch sets PRISM's virtual precision and rounding mode from Python.
+# Pure ctypes against PRISM's C API: nothing is compiled here, so it cannot
+# bind to a different PRISM than the one libtorch_cpu.so links against.
+COPY python /opt/fuzzy-torch
+RUN python3 -m pip install --break-system-packages --no-deps /opt/fuzzy-torch
+
 # Set working directory for the experiment
 WORKDIR /experiments/LLM
 
-# Copy and compile the omp_ext module
-COPY omp_ext ./omp_ext
-RUN cd omp_ext && \
-    python3 setup.py build_ext --inplace
-
-
 # Copy all python scripts to the experiments/LLM directory inside the image
 # This is done last so that changes to the scripts only rebuild this final layer
-COPY *.py ./
+COPY experiments/LLM/*.py ./

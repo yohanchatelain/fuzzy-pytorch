@@ -14,6 +14,22 @@ The experiments investigate precision scaling at several granularity levels:
 
 4. **Mixed Precision / Rounding Recipes**: Evaluating custom heterogeneous bitwidth and rounding mode assignments per layer and block.
 
+## Requirements
+
+The image must carry a PRISM with the configuration epoch and a Verificarlo
+whose PRISM backend forwards the precision and rounding-mode usercalls. Build
+it from the repository root, which is the build context:
+
+```bash
+podman build -f experiments/LLM/Containerfile -t big-data-lab-team/fuzzy-llm-experiments .
+```
+
+Runs are no longer pinned to one thread. PRISM reconciles a precision change
+with every running thread, so per-module scoping works across an OpenMP team;
+`THREADS_PER_RUN` in `sweep_common.sh` now bounds how much of the machine each
+concurrent container claims, and setting it to 1 reproduces the
+single-threaded control.
+
 ### 1. Fine-Grained Sublayer Perplexity Evaluation
 ```bash
 ./do_fine_perplexity.sh
@@ -49,7 +65,7 @@ python3 plot_cumulative_perplexity.py
 | `test_fine_perplexity.py` | Evaluates fine-grained per-layer (`attn_c_attn`, `attn_c_proj`, `mlp_c_fc`, `mlp_c_proj`) and blockwise (`all`, `0-5`, `0-2`, `0,1`) perplexity. |
 | `test_ideal_mixed.py` | Advanced mixed-precision evaluation script testing heterogeneous rounding configurations. |
 | `test_mixed_generation.py` | Evaluates text generation when `mlp` layers are set to 6-bit while other layers remain at higher precision. |
-| `omp_ext/` | C++/Python extension module (`setup.py`) for thread-local storage (`TLS`) broadcasting of target precision and rounding mode flags. |
+| `fuzzy_torch` | Installed in the image from `python/` at the repository root. Sets PRISM's virtual precision and rounding mode through its C API, and checks that each setting reads back so a sweep fails instead of silently running at full precision. Replaces the former `omp_ext` extension, which wrote PRISM's thread-local state directly because the C API of the day could not change precision mid-run. |
 
 
 ### Shell Orchestrators

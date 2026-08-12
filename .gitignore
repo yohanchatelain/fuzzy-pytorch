@@ -9,3 +9,6 @@ experiments/LLM/*.csv
 experiments/LLM/*.png
 **/hf_cache/
 **/__pycache__/
+
+# Dataset cache fetched at run time
+wikitext-2-test.txt

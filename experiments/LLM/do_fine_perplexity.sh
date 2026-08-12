@@ -25,10 +25,12 @@ mkdir -p "$LOG_DIR"
 TARGET_LAYERS=("attn_c_attn" "attn_c_proj" "mlp_c_fc" "mlp_c_proj")
 
 # Predicted stagnation onset is t ~ log2(n): 9.6 for the 768-length reductions
-# and 11.6 for mlp_c_proj at 3072. Sweeping only {4,6,8} sits entirely inside
-# the stagnation regime and cannot observe the transition, so 10 and 12 are
-# included to bracket both onsets.
-PRECISIONS=(4 6 8 10 12)
+# and 11.6 for mlp_c_proj at 3072. A two-bit grid brackets both onsets but
+# cannot separate a threshold from a steep trend, which left the sharpest
+# prediction of the analysis untested. The grid is unit spaced so that a
+# transition at 9.6 or 11.6 can appear as one, and runs to 14 so the return to
+# the reference is resolved on both sides of the later onset.
+PRECISIONS=($(seq "${T_MIN:-4}" "${T_MAX:-14}"))
 
 SEEDS=$(seeds_for_mode "$MODE")
 

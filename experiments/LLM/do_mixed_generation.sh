@@ -21,7 +21,7 @@ echo "Starting SR version in background..."
 log_file_sr="$LOG_DIR/mixed_sr.log"
 
 podman run --rm \
-    -e PYTHONPATH="/experiments/LLM/omp_ext" \
+    -e PYTHONPATH="/workspace" \
     -e OMP_NUM_THREADS=1 \
     -e MKL_NUM_THREADS=1 \
     -e VFC_BACKENDS="$VFC_BACKEND" \
@@ -34,7 +34,7 @@ echo "Starting RN version in background..."
 log_file_rn="$LOG_DIR/mixed_rn.log"
 
 podman run --rm \
-    -e PYTHONPATH="/experiments/LLM/omp_ext" \
+    -e PYTHONPATH="/workspace" \
     -e OMP_NUM_THREADS=1 \
     -e MKL_NUM_THREADS=1 \
     -e VFC_BACKENDS="libinterflop_prism.so --precision-binary32=10 --precision-binary64=10 --mode=rn" \

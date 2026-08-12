@@ -1,0 +1,78 @@
+# Refresh PRISM inside an instrumented-PyTorch image without rebuilding PyTorch.
+#
+# Verificarlo's pass replaces floating-point operations with *calls* into
+# libprism, and PyTorch's rounding kernel is therefore not inlined into
+# libtorch_cpu.so -- every prism symbol there is undefined and resolved at load
+# time. Replacing the libraries is consequently enough to change the rounding
+# behaviour of an existing image, which turns a multi-hour PyTorch rebuild into
+# a few minutes of bazel. Function signatures must not change for this to hold:
+# the .ll files installed alongside supply them to the compilation pass, and a
+# signature change would require rebuilding PyTorch after all.
+#
+# The build context is a PRISM checkout:
+#
+#   podman build -f containers/prism-refresh/Containerfile \
+#       -t localhost/big-data-lab-team/fuzzy-pytorch:sr-epoch \
+#       /path/to/prism
+#
+# Verify afterwards with:
+#   podman run --rm -e PYTHONPATH=/pkg -v ./python:/pkg:ro <image> \
+#       python3 -c "import fuzzy_torch; fuzzy_torch.assert_effective()"
+
+ARG BASE=localhost/big-data-lab-team/fuzzy-pytorch:sr
+FROM ${BASE}
+
+COPY . /opt/prism
+
+# `bazel build src:prism-all` is what PRISM's own install rule uses, so the
+# libraries here are built the same way as the ones they replace.
+#
+# /etc/ld.so.preload pulls instrumented BLAS and Highway into every process in
+# this image, so each one needs a backend named -- including bazel's own
+# process-wrapper, which the sandbox otherwise starts with a stripped
+# environment. --action_env carries the image's VFC_BACKENDS through. IEEE is
+# the neutral choice: it rounds as the hardware does, so nothing built here is
+# perturbed by being built inside an instrumented image.
+#
+# The compiler is overridden because PRISM's .bazelrc pins clang-18, which this
+# image no longer carries; clang-20 is the closest thing it has. It has to stay
+# a real compiler rather than the image's CC/CXX, which point at the Verificarlo
+# wrappers: PRISM must be built as ordinary code, since it *is* the
+# instrumentation. gcc does not work here -- the dynamic build instantiates
+# Highway's scalar fallback target, which has no two-lane entry points.
+#
+# The logger is silenced for the same reason: every instrumented process prints
+# "Info [verificarlo]: ..." on startup, and bazel's toolchain autodetection
+# parses the output of the probes it runs -- it came back with the linker named
+# "Info".
+ARG CLANG=/usr/lib/llvm-20/bin/clang++
+ARG BAZEL_ENV="--action_env=VFC_BACKENDS --host_action_env=VFC_BACKENDS \
+    --repo_env=VFC_BACKENDS_LOGGER=False \
+    --action_env=VFC_BACKENDS_LOGGER=False \
+    --host_action_env=VFC_BACKENDS_LOGGER=False"
+ENV VFC_BACKENDS_LOGGER=False
+# The -dbg variants of src:prism-all are not built here: they do not compile
+# under gcc (the scalar fallback target is missing the xN entry points), and
+# nothing in this image loads them -- libtorch_cpu.so links the static build.
+# They stay at the revision the image was created with.
+ARG LLVM_BINDIR=/usr/lib/llvm-20/bin
+RUN cd /opt/prism && \
+    rm -rf /root/.cache/bazel && \
+    sed -i "s|/usr/lib/llvm-18/bin|${LLVM_BINDIR}|" .bazelrc config.bzl && \
+    bazel build ${BAZEL_ENV} @hwy && \
+    bazel build ${BAZEL_ENV} //src:prism-static //src:prism-dynamic && \
+    bazel build ${BAZEL_ENV} :prism_ir && \
+    install -m 0755 bazel-bin/src/libprism-dynamic.so /usr/local/lib/ && \
+    install -m 0755 bazel-bin/src/libprism-static.so /usr/local/lib/ && \
+    install -m 0644 bazel-bin/prism-dynamic.ll /usr/local/lib/ && \
+    install -m 0644 bazel-bin/prism-static.ll /usr/local/lib/ && \
+    ldconfig
+
+# The new precision getters must be visible, or fuzzy_torch will refuse to run.
+RUN nm -D /usr/local/lib/libprism-static.so | \
+        grep -q interflop_prism_get_virtual_precision_binary32 && \
+    echo "PRISM refreshed: configuration epoch present"
+
+# bazel's cache and the checkout are build-time only.
+RUN cd /opt/prism && bazel clean --expunge >/dev/null 2>&1 || true; \
+    rm -rf /opt/prism /root/.cache/bazel

@@ -9,46 +9,22 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 WIKITEXT_URL = "https://raw.githubusercontent.com/pytorch/examples/master/word_language_model/data/wikitext-2/test.txt"
 LOCAL_CACHE_FILE = "wikitext-2-test.txt"
 
-# Interflop/OpenMP extensions loading for dynamic precision hooks.
+# Precision and rounding-mode control comes from fuzzy_torch, which drives
+# PRISM's C API directly. It replaces the omp_ext extension this harness used
+# to carry: PRISM now reconciles a process-wide change with every running
+# thread itself, so there is nothing left to broadcast from here.
 #
-# Without omp_ext the per-module hooks below cannot change anything, and the run
-# silently degrades to full precision while still producing a plausible-looking
-# perplexity. That failure is indistinguishable from a real result in the logs,
-# so it is fatal rather than a warning.
-try:
-    import omp_ext
-except ImportError as exc:
-    raise ImportError(
-        "omp_ext is required: without it the per-module precision hooks are "
-        "no-ops and every sweep silently runs at full precision. Build it with "
-        "`cd omp_ext && python3 setup.py build_ext --inplace` and put it on "
-        "PYTHONPATH."
-    ) from exc
+# The import is fatal rather than a warning. Without it the per-module hooks
+# below are no-ops, the run silently degrades to full precision, and the
+# resulting perplexity is indistinguishable from a real measurement in the logs.
+from fuzzy_torch import RN, SR, set_precision, set_rounding_mode  # noqa: F401
+from fuzzy_torch import assert_effective, get_precision, get_rounding_mode  # noqa: F401
 
-print("Successfully loaded omp_ext for PRISM TLS broadcasting")
-
-def set_precision(precision, is_binary64=False):
-    omp_ext.set_precision(precision)
-    applied = omp_ext.get_precision()
-    if applied != precision:
-        raise RuntimeError(
-            f"PRISM precision did not take effect: asked for {precision}, "
-            f"thread reports {applied}"
-        )
-
-def set_rounding_mode(mode):
-    omp_ext.set_rounding_mode(mode)
-    applied = omp_ext.get_rounding_mode()
-    if applied != mode:
-        raise RuntimeError(
-            f"PRISM rounding mode did not take effect: asked for {mode}, "
-            f"thread reports {applied}"
-        )
 
 def make_pre_hook(target_precision, target_mode=None):
     """Creates a pre-hook to drop precision and optionally change rounding mode (0:SR, 1:RN) before the module runs."""
     def hook(module, input):
-        set_precision(target_precision, is_binary64=False)
+        set_precision(target_precision)
         if target_mode is not None:
             set_rounding_mode(target_mode)
     return hook
@@ -56,7 +32,7 @@ def make_pre_hook(target_precision, target_mode=None):
 def make_post_hook(default_precision, default_mode=None):
     """Creates a post-hook to restore precision and optionally rounding mode (0:SR, 1:RN) after the module runs."""
     def hook(module, input, output):
-        set_precision(default_precision, is_binary64=False)
+        set_precision(default_precision)
         if default_mode is not None:
             set_rounding_mode(default_mode)
     return hook
@@ -113,7 +89,7 @@ def evaluate_perplexity(model, encodings, seq_len, stride, max_length, verbose=F
     ppl = torch.exp(torch.stack(nlls).sum() / total_predicted_tokens)
     return ppl.item()
 
-def load_model_and_dataset(model_id="distilgpt2", fraction=100, num_threads=1):
+def load_model_and_dataset(model_id="distilgpt2", fraction=100, num_threads=None):
     """Loads the tokenizer, causal LM model, and WikiText-2 dataset slice."""
     if num_threads is not None:
         torch.set_num_threads(num_threads)

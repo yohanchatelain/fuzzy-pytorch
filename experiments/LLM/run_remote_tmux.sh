@@ -10,15 +10,19 @@ fi
 
 REMOTE_CONN="$1"
 SCRIPT_FILE="$2"
-REMOTE_PATH="~/experiments/LLM"
+# The image build context is the repository root: the Containerfile installs
+# fuzzy_torch from python/ as well as the scripts from experiments/LLM.
+REMOTE_ROOT="~/fuzzy-llm"
+REMOTE_PATH="${REMOTE_ROOT}/experiments/LLM"
 
 # Ensure we are in the correct directory (directory of the script)
 cd "$(dirname "$0")"
+REPO_ROOT="$(cd ../.. && pwd)"
 
 # 1. Sync the workspace to the remote host using tar over ssh
 echo "==> Syncing workspace to remote host '$REMOTE_CONN' using tar over ssh..."
 ssh "$REMOTE_CONN" "mkdir -p ${REMOTE_PATH}"
-tar -cf - \
+tar -C "$REPO_ROOT" -cf - \
     --exclude='hf_cache' \
     --exclude='perplexity_logs' \
     --exclude='run_logs' \
@@ -30,15 +34,17 @@ tar -cf - \
     --exclude='*.csv' \
     --exclude='*.log' \
     --exclude='run_remote_tmux.sh' \
-    . | ssh "$REMOTE_CONN" "tar -xf - -C ${REMOTE_PATH}/"
+    python experiments/LLM | ssh "$REMOTE_CONN" "tar -xf - -C ${REMOTE_ROOT}/"
 
 # 2. Enable systemd user lingering so processes persist after SSH disconnection
 echo "==> Ensuring user lingering is enabled on remote server..."
 ssh "$REMOTE_CONN" "loginctl enable-linger \$(whoami) 2>/dev/null || true"
 
-# 3. Build the container image on the remote host to capture any synced script changes
+# 3. Build the container image on the remote host to capture any synced script
+#    changes. The base must already carry a PRISM with the configuration epoch;
+#    see RUNBOOK.md for the one-off refresh that produces fuzzy-pytorch:sr-epoch.
 echo "==> Building container image on remote host '$REMOTE_CONN'..."
-ssh "$REMOTE_CONN" "cd ${REMOTE_PATH} && podman build -t localhost/big-data-lab-team/fuzzy-llm-experiments:latest -f Containerfile ."
+ssh "$REMOTE_CONN" "cd ${REMOTE_ROOT} && podman build -t localhost/big-data-lab-team/fuzzy-llm-experiments:latest -f experiments/LLM/Containerfile ."
 
 # 4. Detect tmux binary on remote host
 echo "==> Detecting tmux binary on remote host '$REMOTE_CONN'..."

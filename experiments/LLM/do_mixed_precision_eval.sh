@@ -10,7 +10,7 @@ running=0
 for config in "${CONFIGS[@]}"; do
     echo "Launching config: $config in background..."
     podman run --rm \
-        -e PYTHONPATH="/experiments/LLM/omp_ext" \
+        -e PYTHONPATH="/workspace" \
         -e OMP_NUM_THREADS=1 \
         -e MKL_NUM_THREADS=1 \
         -e VFC_BACKENDS="libinterflop_prism.so" \

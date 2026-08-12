@@ -33,8 +33,8 @@ void divf64(const double *, const double *, double *, size_t);
 void fmaf64(const double *, const double *, const double *, double *, size_t);
 } // namespace prism::sr::vector::DISPATCH::variable
 
-namespace prism::sr {
-extern thread_local int32_t rounding_mode;
+extern "C" {
+void interflop_prism_set_rounding_mode(int32_t mode);
 }
 
 namespace pd = prism::sr::vector::DISPATCH::variable;
@@ -105,9 +105,9 @@ int main(int argc, char **argv) {
 
     auto row = [&](const char *op, const char *ty, double nat,
                    auto &&call) {
-        prism::sr::rounding_mode = SR;
+        interflop_prism_set_rounding_mode(SR);
         double sr = time_ns_per_elem(call);
-        prism::sr::rounding_mode = RN;
+        interflop_prism_set_rounding_mode(RN);
         double rn = time_ns_per_elem(call);
         printf("  %-6s %-8s %12.4f %12.4f %12.4f %10.1f %10.1f\n",
                op, ty, nat, sr, rn, sr / nat, rn / nat);

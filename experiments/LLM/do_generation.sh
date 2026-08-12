@@ -31,7 +31,7 @@ for prec in "${PRECISIONS[@]}"; do
 
     # Run in background and redirect output to a log file
     podman run --rm \
-        -e PYTHONPATH="/experiments/LLM/omp_ext" \
+        -e PYTHONPATH="/workspace" \
         -e OMP_NUM_THREADS=1 \
         -e MKL_NUM_THREADS=1 \
         -e VFC_BACKENDS="$VFC_BACKEND" \
